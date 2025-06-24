@@ -24,21 +24,13 @@
   :config
   (exec-path-from-shell-initialize))
 
+(use-package general
+  :straight t)
+
 (use-package catppuccin-theme
   :straight t
   :config
   (load-theme 'catppuccin :no-confirm))
-
-(use-package emacs
-  :custom
-  (tab-always-indent 'complete)
-  (text-mode-ispell-word-completion nil)
-  (read-extended-command-predicate #'command-completion-default-include-p)
-  :hook
-  (prog-mode . (lambda ()
-                 (setq display-line-numbers 'relative)))
-  :init
-  (set-face-attribute 'default nil :font "Monaspace Argon" :height 160))
 
 (setq me/config-org-file (expand-file-name (file-name-concat user-emacs-directory "init.org")))
 (setq me/config-file (expand-file-name (file-name-concat user-emacs-directory "init.el")))
@@ -52,6 +44,83 @@
   "Reload the config file to reflect changes (mostly)"
   (interactive)
   (load-file me/config-file))
+
+(defun me/put-line-above ()
+  "put a blank line above the cursor without moving it"
+  (interactive)
+  (save-excursion
+    (beginning-of-line)
+    (newline)))
+
+(defun me/put-line-below ()
+  "put a blank line below the cursor without moving it"
+  (interactive)
+  (save-excursion
+    (end-of-line)
+    (newline)))
+
+(use-package emacs
+  :custom
+  (tab-always-indent 'complete)
+  (text-mode-ispell-word-completion nil)
+  (read-extended-command-predicate #'command-completion-default-include-p)
+  :hook
+  (prog-mode . (lambda ()
+                 (setq display-line-numbers 'relative)))
+  :general
+  (:states 'normal
+           "go" 'me/put-line-below
+           "gO" 'me/put-line-above)
+  :init
+  (tool-bar-mode -1)
+  (menu-bar-mode -1))
+
+(setq me/font-scale 1.0)
+(defun me/set-font ()
+  "Setup default fonts"
+  (interactive)
+  (set-face-attribute 'default nil :font "Monaspace Argon" :height (truncate (* 160 me/font-scale))))
+(me/set-font) ; set font for non-daemon
+(add-hook 'server-after-make-frame-hook #'me/set-font) ; set font in daemon windows
+(defun me/font-zoom-in ()
+  "Zoom in"
+  (interactive)
+  (setq me/font-scale (* me/font-scale 1.1))
+  (me/set-font))
+(general-define-key "C-=" 'me/font-zoom-in)
+(defun me/font-zoom-out ()
+  "Zoom in"
+  (interactive)
+  (setq me/font-scale (/ me/font-scale 1.1))
+  (me/set-font))
+(general-define-key "C--" 'me/font-zoom-out)
+
+;; This assumes you've installed the package via MELPA.
+(use-package ligature
+  :straight t
+  :config
+  ;; Enable the "www" ligature in every possible major mode
+  (ligature-set-ligatures 't '("www"))
+  ;; Enable traditional ligature support in eww-mode, if the
+  ;; `variable-pitch' face supports it
+  (ligature-set-ligatures 'eww-mode '("ff" "fi" "ffi"))
+  ;; Enable all Cascadia Code ligatures in programming modes
+  (ligature-set-ligatures 'prog-mode '("|||>" "<|||" "<==>" "<!--" "####" "~~>" "***" "||=" "||>"
+                                       ":::" "::=" "=:=" "===" "==>" "=!=" "=>>" "=<<" "=/=" "!=="
+                                       "!!." ">=>" ">>=" ">>>" ">>-" ">->" "->>" "-->" "---" "-<<"
+                                       "<~~" "<~>" "<*>" "<||" "<|>" "<$>" "<==" "<=>" "<=<" "<->"
+                                       "<--" "<-<" "<<=" "<<-" "<<<" "<+>" "</>" "###" "#_(" "..<"
+                                       "..." "+++" "/==" "///" "_|_" "www" "&&" "^=" "~~" "~@" "~="
+                                       "~>" "~-" "**" "*>" "*/" "||" "|}" "|]" "|=" "|>" "|-" "{|"
+                                       "[|" "]#" "::" ":=" ":>" ":<" "$>" "==" "=>" "!=" "!!" ">:"
+                                       ">=" ">>" ">-" "-~" "-|" "->" "--" "-<" "<~" "<*" "<|" "<:"
+                                       "<$" "<=" "<>" "<-" "<<" "<+" "</" "#{" "#[" "#:" "#=" "#!"
+                                       "##" "#(" "#?" "#_" "%%" ".=" ".-" ".." ".?" "+>" "++" "?:"
+                                       "?=" "?." "??" ";;" "/*" "/=" "/>" "//" "__" "~~" "(*" "*)"
+                                       "\\\\" "://"))
+  ;; Enables ligature checks globally in all buffers. You can also do it
+  ;; per mode with `ligature-mode'.
+  (global-ligature-mode t))
 
 (defun me/org-babel-tangle-config ()
   (when (string-equal (buffer-file-name)
@@ -106,3 +175,33 @@
   :after corfu
   :if (not (display-graphic-p))
   :init (corfu-terminal-mode t))
+
+(use-package flyspell
+  :custom
+  (ispell-program-name "aspell")
+  (ispell-extra-args '("--lang=en_US"))
+  :hook org-mode)
+
+(use-package org
+  :custom
+  (org-hide-leading-stars t)
+  :config
+  :hook
+  (org-mode . visual-line-mode)
+  (org-mode . (lambda () (set-fill-column 80))))
+
+(use-package org-bullets
+  :straight t
+  :hook org-mode)
+
+(use-package visual-fill-column
+  :straight t
+  :custom 
+  (visual-fill-column-center-text t)
+  :hook org-mode)
+
+(use-package magit
+  :straight t
+  :general
+  (:states 'normal
+           "SPC g" 'magit))
